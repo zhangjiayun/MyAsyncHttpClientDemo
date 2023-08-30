@@ -38,11 +38,11 @@ void EventLoop::runLoop()
             {
                 if (m_readCallBack)
                     m_readCallBack();
-                int m = 0;
             }
         }
 
         //4. 做一些其他事情
+        std::this_thread::sleep_for(std::chrono::microseconds(200));    //在这里设置200ms的休眠，否则CPU占用会有点高（权宜之计）
     }
 }
 
@@ -84,9 +84,7 @@ void EventLoop::checkAndHandleTimers()
             delete_timer->run();
             if (delete_timer->getRepeatedTimes() == 0)  //定时器对象无效了，删除
             {
-                timer_mp_.erase(delete_timer->getId());
-                delete delete_timer;
-                timers_queue_.pop();
+                removeTimer(delete_timer->getId());
             }
         }
         else
@@ -112,19 +110,31 @@ void EventLoop::addFd(SOCKET fd, int8_t eventFlags)
 
 void EventLoop::removeFd(SOCKET fd)
 {
-    FD_CLR(fd, &m_allWriteSet);
-    FD_CLR(fd, &m_allReadSet);
     if (m_FDs.count(fd) > 0)
+    {
         m_FDs.erase(fd);
+        FD_CLR(fd, &m_allWriteSet);
+        FD_CLR(fd, &m_allReadSet);
+    }
 }
 
 void EventLoop::updateFd(SOCKET fd, int8_t eventFlags)
 {
     switch (eventFlags)
     {
-    case WRITE_FLAG: FD_SET(fd, &m_allWriteSet); break;
+    case WRITE_FLAG:
+    {
+        FD_SET(fd, &m_allWriteSet);
+        FD_CLR(fd, &m_allReadSet);
+    }
+    break;
 
-    case READ_FLAG: FD_SET(fd, &m_allReadSet); break;
+    case READ_FLAG:
+    {
+        FD_SET(fd, &m_allReadSet);
+        FD_CLR(fd, &m_allWriteSet);
+    }
+    break;
 
     default: return;
         break;
@@ -140,9 +150,7 @@ int EventLoop::selectHandle()
         return -1;
 
     auto maxFD = m_FDs.rbegin();
-    fd_set rset = m_allReadSet;
-    fd_set wset = m_allWriteSet;
 
-    int nready = ::select(*maxFD + 1, &rset, &wset, NULL, NULL);
+    int nready = ::select(*maxFD + 1, &m_allReadSet, &m_allWriteSet, NULL, NULL);
     return nready;
 }

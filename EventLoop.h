@@ -9,6 +9,7 @@
 #include <map>
 #include <queue>
 #include <set>
+#include <thread>
 #include <unordered_map>
 #include "Platform.h"
 #include "Timer.h"

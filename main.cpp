@@ -48,6 +48,12 @@ void myHttpResultHandler(ResultCode resultCode, const std::string& response)
     }
     break;
 
+    case ResultCode::ConnectError:
+    {
+        std::cout << "ConnectError" << std::endl;
+    }
+    break;
+
     default:
         break;
     }
@@ -73,11 +79,16 @@ int main()
     {
         while (true)
         {
-            std::unique_lock<std::mutex> guard(g_mutex1);
-            while (myHttpClient.getIsBusy() == true)
             {
-                g_cv1.wait(guard);
+                //std::unique_lock<std::mutex> guard(g_mutex1);         //？ 好像这里不需要用到信号量
+                //while (myHttpClient.getIsBusy() == true)
+                //{
+                //    g_cv1.wait(guard);
+                //}
+                if (myHttpClient.getIsBusy())
+                    continue;
             }
+            std::cout << std::endl;
             std::cout << "Continue or not? (Yes or No)" << std::endl;
             getline(std::cin, sFlag);
             transform(sFlag.begin(), sFlag.end(), sFlag.begin(), ::toupper);    //转成大写

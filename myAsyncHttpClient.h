@@ -64,7 +64,7 @@ public:
         const std::string& method,
         const std::map<std::string, std::string>& customHeaders, const std::string& body, std::string& response,
         bool reservedHeaderInResponse = false, CompressMethod compressMethod = CompressMethod::none,
-        int connectTimeoutMs = 3000, int readWriteTimeoutMs = 6000, bool keepAlive = true);
+        int connectTimeoutMs = 3, int readWriteTimeoutMs = 4, bool keepAlive = true); //
 
 
     bool myGet(AsyncResultHandler&& asyncResultHandler, const std::string& host, unsigned short port, const std::string& path,

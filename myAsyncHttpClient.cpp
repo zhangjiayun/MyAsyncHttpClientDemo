@@ -126,13 +126,11 @@ struct AsyncImpl : public Connection
             closeDirectly();
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
         {
-            std::lock_guard<std::mutex> guard(g_mutex1);
+            //std::lock_guard<std::mutex> guard(g_mutex1);  //这里好像不需要用到信号量 ？
             m_busy = false;
         }
-        g_cv1.notify_one();
+        //g_cv1.notify_one();
 
     }
 
@@ -141,14 +139,19 @@ struct AsyncImpl : public Connection
         //读事件触发，开始收包
         bool success = recvData();
 
-        //清除上一个定时器
-        m_eventLoop->removeTimer(m_timerID); 
-
         if (!success) {
+            //清除上一个定时器
+            m_eventLoop->removeTimer(m_timerID);
             //收包出错
             doResultHandler(ResultCode::RecvDataError);
             return;
         }
+
+        if (m_response.empty())
+            return;
+
+        //清除上一个定时器
+        m_eventLoop->removeTimer(m_timerID);
 
         //TODO: 尝试解包，解包逻辑有待完善
         DecodeResult result = decodePackage();
@@ -340,6 +343,8 @@ struct AsyncImpl : public Connection
             if (!pHostent)
             {
                 printf("The Host Inputed Is Invalid.\n");
+                printf("Please check your Network Connection.\n");
+                doResultHandler(ResultCode::ConnectError);
                 return;
             }
             else
@@ -461,6 +466,7 @@ struct AsyncImpl : public Connection
             {
                 // n < 0的情况
 #ifdef WINDOWS
+                int errorcode = ::WSAGetLastError();
                 if (::WSAGetLastError() == WSAEWOULDBLOCK)
                 {
                     //由于TCP窗口太小，发不出，暂时退出
@@ -499,12 +505,19 @@ struct AsyncImpl : public Connection
             }
             else if (n < 0)
             {
+                int errocode = ::WSAGetLastError();
                 if (errno == EWOULDBLOCK || ::WSAGetLastError() == WSAEWOULDBLOCK)
                 {
-                    if (m_response.empty())
-                        continue;
-                    else
-                        break;
+                    //if (m_response.empty())
+                    //    continue;
+                    //else
+                    //    break;
+                    break;
+                }
+                if (errno == ECONNRESET || ::WSAGetLastError() == WSAECONNRESET)
+                {
+                    //return false;
+                    break;
                 }
             }
             else
